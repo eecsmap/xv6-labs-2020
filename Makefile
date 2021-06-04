@@ -148,6 +148,7 @@ UPROGS=\
 	$U/_trace\
 	$U/_usertests\
 	$U/_grind\
+	$U/_sysinfotest\
 	$U/_wc\
 	$U/_zombie\
 

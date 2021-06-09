@@ -80,6 +80,7 @@ argstr(int n, char *buf, int max)
   uint64 addr;
   if(argaddr(n, &addr) < 0)
     return -1;
+  debug("*** argstr %s;\n", (char *)addr);
   return fetchstr(addr, buf, max);
 }
 

@@ -5,6 +5,7 @@
 #include "defs.h"
 
 volatile static int started = 0;
+extern char end[];
 
 // start() jumps here in supervisor mode on all CPUs.
 void
@@ -47,6 +48,5 @@ main()
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
   }
-
   scheduler();        
 }

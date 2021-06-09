@@ -625,6 +625,7 @@ skipelem(char *path, char *name)
 static struct inode*
 namex(char *path, int nameiparent, char *name)
 {
+  debug("*** namex path: %s; name: %s\n", path, name);
   struct inode *ip, *next;
 
   if(*path == '/')
@@ -660,6 +661,7 @@ namex(char *path, int nameiparent, char *name)
 struct inode*
 namei(char *path)
 {
+  debug("*** namei path: %s;\n");
   char name[DIRSIZ];
   return namex(path, 0, name);
 }

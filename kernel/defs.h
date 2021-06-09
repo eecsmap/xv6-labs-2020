@@ -1,3 +1,11 @@
+#define DEBUG 0
+
+#if DEBUG == 1
+#define debug(...) printf(__VA_ARGS__)
+#else
+#define debug(...) ((void)0)
+#endif
+
 struct buf;
 struct context;
 struct file;
@@ -179,7 +187,8 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 void            vmprint(pagetable_t);
-
+void            mirror(pagetable_t dst, pagetable_t src, uint64 from, uint64 to);
+void            log_info(char *);
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

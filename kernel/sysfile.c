@@ -419,6 +419,7 @@ sys_exec(void)
   int i;
   uint64 uargv, uarg;
 
+  debug("*** sys_exec: prepare to get path\n");
   if(argstr(0, path, MAXPATH) < 0 || argaddr(1, &uargv) < 0){
     return -1;
   }
@@ -441,6 +442,8 @@ sys_exec(void)
       goto bad;
   }
 
+  // make sure this path and argv are correct
+  // you might want to figure out when they are filled
   int ret = exec(path, argv);
 
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)

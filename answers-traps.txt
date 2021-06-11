@@ -1,0 +1,14 @@
+register a0 to a7 used to save parameters to a function.
+a2 is used in printf holding the third parameter 13.
+
+function f and g are too simple that compiler can figure out the value in compiling time thus use the value directly.
+
+printf is at 0x628
+
+ra should be 0x38 which is the begining of exit() call as the next instruction to execute after returnning from printf.
+
+the output is 'He110 World'
+
+for big endian we need i to be 0x726c6400
+
+while printf("x=%d y=%d", 3) trying to print the nonexistent 2nd parameter. it will keep looking from register a1 and print its value as 32bit integer.

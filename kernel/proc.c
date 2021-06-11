@@ -126,6 +126,10 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+  p->cputicks = 0;
+  p->ticks = 0;
+  p->sigalarm = 0;
+  p->in_alarm = 0;
 
   return p;
 }
@@ -223,7 +227,7 @@ userinit(void)
 
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
-  p->trapframe->sp = PGSIZE;  // user stack pointer
+  p->trapframe->fuc.sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -281,7 +285,7 @@ fork(void)
   *(np->trapframe) = *(p->trapframe);
 
   // Cause fork to return 0 in the child.
-  np->trapframe->a0 = 0;
+  np->trapframe->fuc.a0 = 0;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)

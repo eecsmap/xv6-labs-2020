@@ -37,17 +37,17 @@ argraw(int n)
   struct proc *p = myproc();
   switch (n) {
   case 0:
-    return p->trapframe->a0;
+    return p->trapframe->fuc.a0;
   case 1:
-    return p->trapframe->a1;
+    return p->trapframe->fuc.a1;
   case 2:
-    return p->trapframe->a2;
+    return p->trapframe->fuc.a2;
   case 3:
-    return p->trapframe->a3;
+    return p->trapframe->fuc.a3;
   case 4:
-    return p->trapframe->a4;
+    return p->trapframe->fuc.a4;
   case 5:
-    return p->trapframe->a5;
+    return p->trapframe->fuc.a5;
   }
   panic("argraw");
   return -1;
@@ -104,6 +104,8 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -127,6 +129,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_sigalarm] sys_sigalarm,
+[SYS_sigreturn] sys_sigreturn,
 };
 
 void
@@ -135,12 +139,12 @@ syscall(void)
   int num;
   struct proc *p = myproc();
 
-  num = p->trapframe->a7;
+  num = p->trapframe->fuc.a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    p->trapframe->a0 = syscalls[num]();
+    p->trapframe->fuc.a0 = syscalls[num]();
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
-    p->trapframe->a0 = -1;
+    p->trapframe->fuc.a0 = -1;
   }
 }

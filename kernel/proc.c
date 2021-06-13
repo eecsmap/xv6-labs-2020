@@ -267,6 +267,7 @@ fork(void)
     return -1;
   }
 
+  np->ustack = p->ustack;
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);

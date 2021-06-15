@@ -6,6 +6,8 @@
 #include "defs.h"
 #include "fs.h"
 
+extern uint cow_page[];
+
 /*
  * the kernel's page table.
  */
@@ -311,7 +313,6 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -319,20 +320,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    *pte = (*pte & ~PTE_W) | PTE_C;
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
-    }
+    if (mappages(new, i, PGSIZE, pa, flags) != 0)
+      return -1;
+    cow_page[COW_INDEX(pa)]++;
   }
   return 0;
-
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
 }
 
 // mark a PTE invalid for user access.
@@ -358,7 +352,29 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    pa0 = walkaddr(pagetable, va0);
+
+    if(va0 >= MAXVA)
+      return -1;
+
+    pte_t * pte = walk(pagetable, va0, 0);
+
+    if(pte == 0) return -1;
+
+    pa0 = PTE2PA(*pte);
+    if (*pte & PTE_C) {
+      char *mem;
+      if((mem = kalloc()) == 0) return -1;
+
+      memmove(mem, (char*)pa0, PGSIZE);
+      uint flags = (PTE_FLAGS(*pte) & ~PTE_C) | PTE_W;
+      uvmunmap(pagetable, va0, 1, 1);
+      if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) != 0) {
+        kfree(mem);
+        return -1;
+      }
+      pa0 = (uint64)mem;
+    }
+
     if(pa0 == 0)
       return -1;
     n = PGSIZE - (dstva - va0);
@@ -439,4 +455,32 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+static uint64 mask = ~((1<<20) - 1) >> 10;
+
+static int px[3];
+
+static void print_pte(pte_t *ptes, int level) {
+  if (level < 0) return;
+  for (int i = 0; i < 512; ++i) {
+    px[level] = i;
+    pte_t pte = ptes[i];
+    if (pte & PTE_V) {
+      uint64 pa = (pte & mask) << 2;
+      for (int j = 2; j > level; --j) debug(".. ");
+      if (level == 0) {
+        int va = px[2] << 30 | px[1] << 21 | px[0] << 12;
+        debug("..%d: pte %p pa %p va %p\n", i, pte, pa, va);
+      } else
+        debug("..%d: pte %p pa %p\n", i, pte, pa);
+      print_pte((pte_t *)pa, level - 1);
+    }
+  }
+}
+
+void vmprint(char *name, pagetable_t pagetable)
+{
+  debug("[%s] page table %p\n", name, pagetable);
+  print_pte(pagetable, 2);
 }

@@ -1,3 +1,6 @@
+#define DEBUG 0
+#define debug(...) (DEBUG ? printf(__VA_ARGS__) : (void)0)
+
 struct buf;
 struct context;
 struct file;
@@ -171,6 +174,8 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+pte_t *         walk(pagetable_t pagetable, uint64 va, int alloc);
+void            vmprint(char *name, pagetable_t pagetable);
 
 // plic.c
 void            plicinit(void);

@@ -401,6 +401,31 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
 
+  struct buf *bp2;
+  bn -= NINDIRECT;
+  if(bn < NINDIRECT * NINDIRECT){
+    // Load double indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT + 1]) == 0)
+      ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[bn / NINDIRECT]) == 0) {
+      a[bn / NINDIRECT] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+
+    bp2 = bread(ip->dev, addr);
+    a = (uint*)bp2->data;
+    if ((addr = a[bn % NINDIRECT]) == 0) {
+      a[bn % NINDIRECT] = addr = balloc(ip->dev);
+      log_write(bp2);
+    }
+
+    brelse(bp2);
+    return addr;
+  }
+
   panic("bmap: out of range");
 }
 
@@ -430,6 +455,26 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  if(ip->addrs[NDIRECT + 1]){
+    bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
+    a = (uint*)bp->data;
+    for(i = 0; i < NINDIRECT; i++){
+      if (a[i]) {
+        struct buf *bp2 = bread(ip->dev, a[i]);
+        uint *b = (uint*)bp2->data;
+        for (j = 0; j < NINDIRECT; j++) {
+          if (b[j])
+            bfree(ip->dev, b[j]);
+        }
+        brelse(bp2);
+        bfree(ip->dev, a[i]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT + 1]);
+    ip->addrs[NDIRECT + 1] = 0;
   }
 
   ip->size = 0;
@@ -595,7 +640,7 @@ dirlink(struct inode *dp, char *name, uint inum)
 //   skipelem("///a//bb", name) = "bb", setting name = "a"
 //   skipelem("a", name) = "", setting name = "a"
 //   skipelem("", name) = skipelem("////", name) = 0
-//
+//  截断路径的最高节点并放入name，返回剩下的路径。否则返回0
 static char*
 skipelem(char *path, char *name)
 {
@@ -625,6 +670,7 @@ skipelem(char *path, char *name)
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
+// NOTE: consider nameiparent as a BOOL indicating 
 static struct inode*
 namex(char *path, int nameiparent, char *name)
 {
@@ -635,7 +681,12 @@ namex(char *path, int nameiparent, char *name)
   else
     ip = idup(myproc()->cwd);
 
+  // a/b/c -> b/c, a
+  // parse each section of the path from top
   while((path = skipelem(path, name)) != 0){
+    // name is the first section on the original path
+    // which is not empty
+    // new path might be empty though
     ilock(ip);
     if(ip->type != T_DIR){
       iunlockput(ip);
